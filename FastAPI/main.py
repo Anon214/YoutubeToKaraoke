@@ -34,16 +34,20 @@ def download_youtube_audio(video_url):
 
 
 def separate_vocals(input_file):
-    command = [
-        'spleeter',
-        'separate',
-        '-p', 'spleeter:2stems',
-        '-b', '320k',
-        '-o', "./FastAPI",
-        input_file
-    ]
+    try:
+        command = [
+            'spleeter',
+            'separate',
+            '-p', 'spleeter:2stems',
+            '-b', '320k',
+            '-o', "./FastAPI",
+            input_file
+        ]
 
-    subprocess.run(command, check=True, shell=True)
+        subprocess.run(command, check=True, shell=True)
+    except Exception as e:
+        print(f"Error separating vocals: {e}")
+        raise
 
 @app.post("/process_link")
 async def process_link(data: dict):
@@ -58,9 +62,16 @@ async def process_link(data: dict):
             raise HTTPException(status_code=400, detail="No URL submitted")
         
         download_youtube_audio(youtube_url)
-        separate_vocals("FastAPI/audio.mp3")
+        separate_vocals("/FastAPI/audio.mp3")
 
-        return  FileResponse('FastAPI/audio/accompaniment.wav', media_type="audio/wav", filename="accompaniment.wav")
+        acc_path = '/FastAPI/audio/accompaniment.wav'
+
+        if os.path.exists(acc_path): # compiled path
+            acc_path = '/FastAPI/audio/accompaniment.wav'
+        else: # docker path
+            acc_path = '/code/audio/accompaniment.wav'
+
+        return FileResponse(acc_path, media_type="audio/wav", filename="accompaniment.wav")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -68,4 +79,4 @@ async def process_link(data: dict):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
