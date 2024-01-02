@@ -3,6 +3,9 @@
 # env
 /env
 
+#pem file
+ec2key.pem
+
 # dependencies
 /node_modules
 /.pnp

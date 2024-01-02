@@ -12,7 +12,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000, http://localhost:8000, http://localhost:8000/process_link"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,7 +26,7 @@ def download_youtube_audio(video_url):
             'preferredcodec': 'mp3',
             'preferredquality': '320',
         }],
-        'outtmpl': 'FastAPI/audio',
+        'outtmpl': '/code/audio',
     }
 
     with yt_dlp.YoutubeDL(options) as ydl:
@@ -40,11 +40,11 @@ def separate_vocals(input_file):
             'separate',
             '-p', 'spleeter:2stems',
             '-b', '320k',
-            '-o', "./FastAPI",
+            '-o', "./",
             input_file
         ]
 
-        subprocess.run(command, check=True, shell=True)
+        subprocess.run(command, check=True)
     except Exception as e:
         print(f"Error separating vocals: {e}")
         raise
@@ -52,23 +52,23 @@ def separate_vocals(input_file):
 @app.post("/process_link")
 async def process_link(data: dict):
     try:
-        audio_path = "FastAPI/audio"
+        audio_path = "/code/audio"
         if os.path.exists(audio_path):
             shutil.rmtree(audio_path)
+        if os.path.exists("/code/audio.mp3"):
+            shutil.rmtree("/code/audio.mp3")
 
-        youtube_url = text = data.get("url")
+        youtube_url = data.get("url")
 
-        if text is None:
+        if youtube_url is None:
             raise HTTPException(status_code=400, detail="No URL submitted")
         
         download_youtube_audio(youtube_url)
-        separate_vocals("/FastAPI/audio.mp3")
+        separate_vocals("/code/audio.mp3")
 
-        acc_path = '/FastAPI/audio/accompaniment.wav'
+        acc_path = '/code/audio/accompaniment.wav'
 
-        if os.path.exists(acc_path): # compiled path
-            acc_path = '/FastAPI/audio/accompaniment.wav'
-        else: # docker path
+        if not os.path.exists(acc_path): # docker
             acc_path = '/code/audio/accompaniment.wav'
 
         return FileResponse(acc_path, media_type="audio/wav", filename="accompaniment.wav")
